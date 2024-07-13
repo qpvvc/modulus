@@ -14,16 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-zarr_store_path: "/datasets/zarr_tas_data"
-hdf5_store_path: "/datasets/hdf5_tas_data"
-dt: 6
-start_train_year: 1980
+zarr_store_path: "/datasets/zarr_data_uv_2015"
+hdf5_store_path: "/datasets/hdf5_data_uv_2015"
+dt: 1
+start_train_year: 2015
 end_train_year: 2015
 test_years:
-  - 2016
-  - 2017
+  - 2015
 out_of_sample_years:
-  - 2018
+  - 2015
 compute_mean_std: True
 variables:
-  - "2m_temperature"
+  - "10m_u_component_of_wind"
+  - "10m_v_component_of_wind"  

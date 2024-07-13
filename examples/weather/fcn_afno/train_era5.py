@@ -62,6 +62,11 @@ def validation_step(eval_step, fcn_model, datapipe, channels=[0, 1], epoch=0):
         outvar = data[0]["outvar"].cpu().detach()
         predvar = torch.zeros_like(outvar)
 
+        # 检查并替换invar中的NaN值
+        invar = torch.nan_to_num(invar, nan=0.0)
+        # 检查并替换outvar中的NaN值
+        outvar = torch.nan_to_num(outvar, nan=0.0)   
+        
         for t in range(outvar.shape[1]):
             output = eval_step(fcn_model, invar)
             invar.copy_(output)
@@ -91,7 +96,7 @@ def validation_step(eval_step, fcn_model, datapipe, channels=[0, 1], epoch=0):
     return loss_epoch / num_examples
 
 
-@hydra.main(version_base="1.2", config_path="conf", config_name="config")
+@hydra.main(version_base="1.2", config_path="conf", config_name="config_1")
 def main(cfg: DictConfig) -> None:
     DistributedManager.initialize()
     dist = DistributedManager()
@@ -104,7 +109,7 @@ def main(cfg: DictConfig) -> None:
     #     group="FCN-DDP-Group",
     # )
     initialize_mlflow(
-        experiment_name="Modulus-Launch-Dev",
+        experiment_name="precip",
         experiment_desc="Modulus launch development",
         run_name="FCN-Training",
         run_desc="FCN ERA5 Training",
@@ -116,7 +121,7 @@ def main(cfg: DictConfig) -> None:
 
     datapipe = ERA5HDF5Datapipe(
         data_dir=to_absolute_path(cfg.train_dir),
-        stats_dir=to_absolute_path(cfg.stats_dir),
+        # stats_dir=to_absolute_path(cfg.stats_dir),
         channels=cfg.channels,
         num_steps=cfg.num_steps_train,
         num_samples_per_year=cfg.num_samples_per_year_train,
@@ -132,7 +137,7 @@ def main(cfg: DictConfig) -> None:
         logger.file_logging()
         validation_datapipe = ERA5HDF5Datapipe(
             data_dir=to_absolute_path(cfg.validation_dir),
-            stats_dir=to_absolute_path(cfg.stats_dir),
+            # stats_dir=to_absolute_path(cfg.stats_dir),
             channels=cfg.channels,
             num_steps=cfg.num_steps_validation,
             num_samples_per_year=cfg.num_samples_per_year_validation,
@@ -173,7 +178,7 @@ def main(cfg: DictConfig) -> None:
 
     # Initialize optimizer and scheduler
     optimizer = optimizers.FusedAdam(
-        fcn_model.parameters(), betas=(0.9, 0.999), lr=0.0005, weight_decay=0.0
+        fcn_model.parameters(), betas=(0.9, 0.999), lr=1e-6, weight_decay=0.0
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=150)
 
@@ -192,6 +197,12 @@ def main(cfg: DictConfig) -> None:
 
     @StaticCaptureTraining(model=fcn_model, optim=optimizer, logger=logger)
     def train_step_forward(my_model, invar, outvar):
+
+        # 检查并替换invar中的NaN值
+        invar = torch.nan_to_num(invar, nan=0.0)
+        # 检查并替换outvar中的NaN值
+        outvar = torch.nan_to_num(outvar, nan=0.0)      
+
         # Multi-step prediction
         loss = 0
         for t in range(outvar.shape[1]):

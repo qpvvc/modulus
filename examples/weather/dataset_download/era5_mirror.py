@@ -318,7 +318,7 @@ class ERA5Mirror:
         for variable, pressure_level in reformated_variables:
             zarr_path = self.variable_to_zarr_name(variable, pressure_level)
             zarr_paths.append(zarr_path)
-
+            
         # Check that Zarr arrays have correct dt for time dimension
         for zarr_path in zarr_paths:
             ds = xr.open_zarr(zarr_path)
