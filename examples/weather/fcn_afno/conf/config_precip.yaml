@@ -20,11 +20,11 @@ hydra:
   run:
     dir: outputs/
 
-train_dir: /datasets/hdf5_tas_data_test/train
-validation_dir: /datasets/hdf5_tas_data_test/test
-stats_dir: /datasets/hdf5_tas_data_test/stats
+train_dir: /datasets/FCN_ERA5_data_v0/precip/train
+validation_dir: /datasets/FCN_ERA5_data_v0/precip/test
+# stats_dir: /datasets/FCN_ERA5_data_v0/precip/stats
 
-ckpt_path: checkpoints/tas1
+ckpt_path: checkpoints
 
 channels: [0]
 
