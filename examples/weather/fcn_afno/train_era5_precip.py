@@ -24,14 +24,12 @@ from torch.nn.parallel import DistributedDataParallel
 from omegaconf import DictConfig
 
 from modulus.models.afno import AFNO
-from modulus.datapipes.climate import ERA5HDF5Datapipe
+from modulus.datapipes.climate.era5_hdf5_tp import ERA5HDF5Datapipe
 from modulus.distributed import DistributedManager
 from modulus.utils import StaticCaptureTraining, StaticCaptureEvaluateNoGrad
 
 from modulus.launch.logging import LaunchLogger, PythonLogger, initialize_mlflow
 from modulus.launch.utils import load_checkpoint, save_checkpoint
-
-from pathlib import Path
 
 try:
     from apex import optimizers
@@ -52,7 +50,7 @@ def loss_func(x, y, p=2.0):
 
 
 @torch.no_grad()
-def validation_step(eval_step, fcn_model, datapipe, fig_path, channels=[0, 1], epoch=0):
+def validation_step(eval_step, fcn_model, datapipe, channels=[0, 1], epoch=0):
     loss_epoch = 0
     num_examples = 0  # Number of validation examples
     # Dealing with DDP wrapper
@@ -78,13 +76,6 @@ def validation_step(eval_step, fcn_model, datapipe, fig_path, channels=[0, 1], e
         loss_epoch += torch.sum(torch.pow(predvar - outvar, 2)) / num_elements
         num_examples += predvar.shape[0]
 
-        # Create checkpoint directory if it does not exist
-        if not Path(fig_path).is_dir():
-            print(
-                f"fig_path directory {fig_path} does not exist, will " "attempt to create"
-            )
-            Path(fig_path).mkdir(parents=True, exist_ok=True)
-
         # Plotting
         if i == 0:
             predvar = predvar.numpy()
@@ -99,13 +90,13 @@ def validation_step(eval_step, fcn_model, datapipe, fig_path, channels=[0, 1], e
                     ax[1, t].imshow(outvar[0, t, chan])
                     ax[2, t].imshow(predvar[0, t, chan] - outvar[0, t, chan])
 
-                fig.savefig(f"{fig_path}/era5_validation_channel{chan}_epoch{epoch}.png")
+                fig.savefig(f"era5_validation_channel{chan}_epoch{epoch}.png")
 
     fcn_model.train()
     return loss_epoch / num_examples
 
 
-@hydra.main(version_base="1.2", config_path="conf", config_name="config_tas")
+@hydra.main(version_base="1.2", config_path="conf", config_name="config_precip")
 def main(cfg: DictConfig) -> None:
     DistributedManager.initialize()
     dist = DistributedManager()
@@ -118,9 +109,9 @@ def main(cfg: DictConfig) -> None:
     #     group="FCN-DDP-Group",
     # )
     initialize_mlflow(
-        experiment_name="tas",
+        experiment_name="precip",
         experiment_desc="Modulus launch development",
-        run_name="FCN-Training_1",
+        run_name="FCN-Training",
         run_desc="FCN ERA5 Training",
         user_name="dj",
         mode="offline",
@@ -241,10 +232,7 @@ def main(cfg: DictConfig) -> None:
             with LaunchLogger("valid", epoch=epoch) as log:
                 # === Validation step ===
                 error = validation_step(
-                    eval_step_forward, fcn_model, validation_datapipe, 
-                    fig_path=to_absolute_path(cfg.ckpt_path), 
-                    channels=cfg.channels, 
-                    epoch=epoch
+                    eval_step_forward, fcn_model, validation_datapipe, epoch=epoch
                 )
                 log.log_epoch({"Validation error": error})
 
