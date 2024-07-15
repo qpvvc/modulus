@@ -8,7 +8,7 @@ import xarray as xr
 
 from era5_mirror import ERA5Mirror
 
-@hydra.main(version_base="1.2", config_path="conf", config_name="config_uv_2015")
+@hydra.main(version_base="1.2", config_path="conf", config_name="config_uv")
 def download_data(cfg: DictConfig) -> None:
 	logging.getLogger().setLevel(logging.ERROR)  # Suppress logging from cdsapi
 	mirror = ERA5Mirror(base_path=cfg.zarr_store_path)

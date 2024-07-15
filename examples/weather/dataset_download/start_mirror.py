@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 from era5_mirror import ERA5Mirror
 
 
-@hydra.main(version_base="1.2", config_path="conf", config_name="config_tas")
+@hydra.main(version_base="1.2", config_path="conf", config_name="config_uv_2015")
 def main(cfg: DictConfig) -> None:
     # Make mirror data
     logging.getLogger().setLevel(logging.ERROR)  # Suppress logging from cdsapi
