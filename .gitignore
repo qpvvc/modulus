@@ -168,3 +168,8 @@ checkpoints/
 outputs/
 multirun/
 .hydra/
+globusconnectpersonal-latest.tgz
+globusconnectpersonal-3.2.5
+docs/tutorials/dist.py
+docs/tutorials/modulus_models.ipynb
+examples/weather/data.ipynb
