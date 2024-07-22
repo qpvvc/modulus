@@ -15,13 +15,14 @@
 # limitations under the License.
 
 import os
-import sys
 import torch
 import matplotlib.pyplot as plt
 
 from modulus.datapipes.climate import ERA5HDF5Datapipe
 
-import hydra
+from train_utils import prepare_input
+
+
 import wandb
 from hydra.utils import to_absolute_path
 from omegaconf import DictConfig
@@ -30,20 +31,30 @@ from omegaconf import DictConfig
 class Validation:
     """Run validation on GraphCast model"""
 
-    def __init__(self, cfg: DictConfig, model, dtype, dist):
+    def __init__(self, cfg: DictConfig, model, dtype, dist, static_data):
         self.val_dir = to_absolute_path(cfg.val_dir)
         self.model = model
         self.dtype = dtype
         self.dist = dist
-        interpolation_shape = (
-            cfg.latlon_res if cfg.latlon_res != (721, 1440) else None
+        self.static_data = static_data
+        self.interpolation_type = (
+            "INTERP_LINEAR" if cfg.latlon_res != (721, 1440) else None
         )  # interpolate if not in native resolution
+        self.cos_zenith_args = {
+            "dt": 6.0,
+            "start_year": 2017,
+        }
         self.val_datapipe = ERA5HDF5Datapipe(
             data_dir=os.path.join(cfg.dataset_path, "test"),
             stats_dir=os.path.join(cfg.dataset_path, "stats"),
             channels=[i for i in range(cfg.num_channels_climate)],
-            interpolation_shape=interpolation_shape,
+            latlon_resolution=cfg.latlon_res,
+            interpolation_type=self.interpolation_type,
             num_steps=cfg.num_val_steps,
+            num_history=cfg.num_history,
+            use_cos_zenith=cfg.use_cos_zenith,
+            use_time_of_year_index=cfg.use_time_of_year_index,
+            cos_zenith_args=self.cos_zenith_args,
             batch_size=1,
             num_samples_per_year=cfg.num_val_spy,
             shuffle=False,
@@ -53,17 +64,43 @@ class Validation:
             num_workers=cfg.num_workers,
         )
         print(f"Loaded validation datapipe of size {len(self.val_datapipe)}")
+        self.num_history = cfg.num_history
+        self.stride = cfg.stride
+        self.dt = cfg.dt
+        self.num_samples_per_year_train = cfg.num_samples_per_year_train
 
     @torch.no_grad()
-    def step(self, channels=[0, 1, 2], iter=0):
+    def step(self, channels=[0, 1, 2], iter=0, time_idx=None):
         torch.cuda.nvtx.range_push("Validation")
         os.makedirs(self.val_dir, exist_ok=True)
         loss_epoch = 0
+        prepare_input_vars = {
+            "num_history": self.num_history,
+            "static_data": self.static_data,
+            "stride": self.stride,
+            "dt": self.dt,
+            "num_samples_per_year": self.num_samples_per_year_train,
+            "device": self.dist.device,
+        }
         for i, data in enumerate(self.val_datapipe):
-            invar = data[0]["invar"].to(dtype=self.dtype)
-            outvar = (
-                data[0]["outvar"][0].to(dtype=self.dtype).to(device=self.dist.device)
+            invar = data[0]["invar"]
+            outvar = data[0]["outvar"][0]
+            try:
+                cos_zenith = data[0]["cos_zenith"]
+            except KeyError:
+                cos_zenith = None
+            try:
+                time_idx = data[0]["time_of_year_idx"].item()
+            except KeyError:
+                time_idx = None
+            invar_cat = prepare_input(
+                invar=invar,
+                cos_zenith=cos_zenith,
+                time_idx=time_idx,
+                **prepare_input_vars,
+                step=1,
             )
+            invar_cat = invar_cat.to(dtype=self.dtype)
 
             pred = (
                 torch.empty(outvar.shape)
@@ -71,9 +108,21 @@ class Validation:
                 .to(device=self.dist.device)
             )
             for t in range(outvar.shape[0]):
-                outpred = self.model(invar)
+                outpred = self.model(invar_cat)
                 pred[t] = outpred
-                invar = outpred
+                if self.num_history > 0:
+                    # drop the first time step, and append the prediction as the last time step in invar
+                    invar = torch.cat((invar[:, 1:, :, :], outpred), dim=1)
+                else:
+                    invar = outpred
+                invar_cat = prepare_input(
+                    invar=invar,
+                    cos_zenith=cos_zenith,
+                    time_idx=time_idx,
+                    **prepare_input_vars,
+                    step=t + 2,
+                )
+                invar_cat = invar_cat.to(dtype=self.dtype)
 
             loss_epoch += torch.mean(torch.pow(pred - outvar, 2))
             torch.cuda.nvtx.range_pop()
