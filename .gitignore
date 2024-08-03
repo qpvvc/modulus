@@ -171,5 +171,8 @@ multirun/
 globusconnectpersonal-latest.tgz
 globusconnectpersonal-3.2.5
 docs/tutorials/dist.py
-docs/tutorials/modulus_models.ipynb
-examples/weather/data.ipynb
+google-cloud-sdk
+google-cloud-cli-477.0.0-linux-x86_64.tar.gz
+output
+examples/weather/dataset_download/test.ipynb
+examples/weather/dataset_download/old
