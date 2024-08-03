@@ -9,7 +9,7 @@ authors = [
 ]
 description = "A deep learning framework for AI-driven multi-physics systems"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {text = "Apache 2.0"}
 dependencies = [
     "torch>=2.0.0",
@@ -126,3 +126,5 @@ SRResNet = "modulus.models.srrn:SRResNet"
 Pangu = "modulus.models.pangu:Pangu"
 Fengwu = "modulus.models.fengwu:Fengwu"
 SwinRNN = "modulus.models.swinvrnn:SwinRNN"
+EDMPrecondSR = "modulus.models.diffusion:EDMPrecondSR"
+UNet = "modulus.models.diffusion:UNet"
