@@ -15,7 +15,7 @@
 # limitations under the License.
 
 zarr_store_path: "/datasets/zarr_data_uv_1980"
-hdf5_store_path: "/datasets/hdf5_data_uv"
+hdf5_store_path: "/datasets/hdf5_data_uv_temp"
 dt: 1
 start_train_year: 1980
 end_train_year: 2012
