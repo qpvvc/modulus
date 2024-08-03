@@ -22,7 +22,8 @@ import datetime
 import json
 import dask
 import calendar
-from dask.diagnostics import ProgressBar
+# from dask.diagnostics import ProgressBar
+from progress import ProgressBar
 from typing import List, Tuple, Dict, Union
 import urllib3
 import logging
@@ -76,7 +77,7 @@ class ERA5Mirror:
         with self.fs.open(self.metadata_file, "w") as f:
             json.dump(self.metadata, f)
 
-    def chunk_exists(self, variable, year, month, hours, pressure_level):
+    def chunk_exists(self, variable, year, month, hours, pressure_level, area):
         """Check if chunk exists"""
         for chunk in self.metadata["chunks"]:
             if (
@@ -85,6 +86,7 @@ class ERA5Mirror:
                 and chunk["month"] == month
                 and chunk["hours"] == hours
                 and chunk["pressure_level"] == pressure_level
+                and chunk["area"] == area
             ):
                 return True
         return False
@@ -96,6 +98,7 @@ class ERA5Mirror:
         month: int,
         hours: List[int],
         pressure_level: int = None,
+        area: str = None,
     ):
         """
         Download ERA5 data for the specified variable, date range, hours, and pressure levels.
@@ -122,7 +125,8 @@ class ERA5Mirror:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Get all days in the month
             days_in_month = calendar.monthrange(year, month)[1]
-
+            # days_in_month = 27 #cdj for test
+            
             # Make tmpfile to store the data
             output_file = os.path.join(
                 tmpdir,
@@ -139,7 +143,9 @@ class ERA5Mirror:
                 "year": str(year),
                 "month": str(month),
                 "day": [f"{day:02d}" for day in range(1, days_in_month + 1)],
+                # "day": '27', #cdj for test
                 "time": [f"{hour:02d}:00" for hour in hours],
+                "area": area,  
                 "format": "netcdf",
             }
             if pressure_level:
@@ -175,6 +181,7 @@ class ERA5Mirror:
         month: int,
         hours: List[int],
         pressure_level: int = None,
+        area: str = None,
     ):
         """
         Downloads a chunk of ERA5 data for a specific variable and date range, and uploads it to a Zarr array.
@@ -195,7 +202,7 @@ class ERA5Mirror:
         """
 
         # Download the data
-        ds = self.download_chunk(variable, year, month, hours, pressure_level)
+        ds = self.download_chunk(variable, year, month, hours, pressure_level, area)
 
         # Create the Zarr path
         zarr_path = self.variable_to_zarr_name(variable, pressure_level)
@@ -239,6 +246,7 @@ class ERA5Mirror:
         variables: List[Union[str, Tuple[str, int]]],
         date_range: Tuple[datetime.date, datetime.date],
         hours: List[int],
+        area: str = None,
     ):
         """
         Start the process of mirroring the specified ERA5 variables for the given date range and hours.
@@ -270,7 +278,7 @@ class ERA5Mirror:
                 reformated_variables.append(variable)
 
         # Start Downloading
-        with ProgressBar():
+        with ProgressBar(dt = 30, user_precentage=False):
             # Round dates to months
             current_date = start_date.replace(day=1)
             end_date = end_date.replace(day=1)
@@ -285,6 +293,7 @@ class ERA5Mirror:
                         current_date.month,
                         hours,
                         pressure_level,
+                        area,
                     ):
                         task = dask.delayed(self.download_and_upload_chunk)(
                             variable,
@@ -292,6 +301,7 @@ class ERA5Mirror:
                             current_date.month,
                             hours,
                             pressure_level,
+                            area,
                         )
                         tasks.append(task)
                     else:
