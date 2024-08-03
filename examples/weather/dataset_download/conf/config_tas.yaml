@@ -14,10 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-zarr_store_path: "/datasets/zarr_tas_data_2019"
+zarr_store_path: "/datasets/zarr_tas_data"
 hdf5_store_path: "/datasets/hdf5_tas_data"
 dt: 6
-start_train_year: 2019
+start_train_year: 1979
 end_train_year: 2020
 test_years:
   - 2021

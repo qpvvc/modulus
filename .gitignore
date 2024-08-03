@@ -173,3 +173,8 @@ globusconnectpersonal-latest.tgz
 examples/weather/data.ipynb
 docs/tutorials/modulus_models.ipynb
 docs/tutorials/dist.py
+google-cloud-sdk
+google-cloud-cli-477.0.0-linux-x86_64.tar.gz
+output
+examples/weather/dataset_download/test.ipynb
+examples/weather/dataset_download/old
