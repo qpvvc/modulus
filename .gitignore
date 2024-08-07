@@ -181,6 +181,7 @@ sbatch_logs/
 
 # ASV
 .asv/
+#cdj
 globusconnectpersonal-3.2.5
 globusconnectpersonal-latest.tgz
 examples/weather/data.ipynb
