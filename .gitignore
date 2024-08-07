@@ -168,6 +168,8 @@ checkpoints/
 outputs/
 multirun/
 .hydra/
+
+#cdj
 globusconnectpersonal-3.2.5
 globusconnectpersonal-latest.tgz
 examples/weather/data.ipynb

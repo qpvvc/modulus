@@ -1,7 +1,8 @@
 import os
 import xarray as xr
 import dask
-from dask.diagnostics import ProgressBar
+# from dask.diagnostics import ProgressBar
+from progress import ProgressBar
 import hydra
 from omegaconf import DictConfig
 import logging
@@ -9,7 +10,7 @@ import numpy as np
 
 # from .era5_mirror import variable_to_zarr_name
 
-@hydra.main(version_base="1.2", config_path="conf", config_name="config_uv")
+@hydra.main(version_base="1.2", config_path="conf", config_name="config_uvsp_swh_mwp")
 def generate_data(cfg: DictConfig) -> None:
 	logging.getLogger().setLevel(logging.ERROR)  # Suppress logging from cdsapi
 
