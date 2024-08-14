@@ -42,5 +42,5 @@ num_samples_per_year_validation: 24 #cdj
 num_workers_train: 8
 num_workers_validation: 8
 
-batch_size_train: 20
+batch_size_train: 10
 batch_size_validation: 1
