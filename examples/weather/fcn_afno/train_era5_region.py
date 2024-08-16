@@ -202,11 +202,15 @@ def main(cfg: DictConfig) -> None:
         invar = torch.nan_to_num(invar, nan=0.0)
         #cdj 检查并替换outvar中的NaN值
         outvar = torch.nan_to_num(outvar, nan=0.0)      
+        
+        msk = torch.ones_like(outvar[:, 0])  # 假设 msk 是一个与 outvar 的单个时间步长相同形状的张量
 
         # Multi-step prediction
         loss = 0
         for t in range(outvar.shape[1]):
             outpred = my_model(invar)
+            #cdj
+            outpred = outpred*msk
             invar = outpred
             loss += loss_func(outpred, outvar[:, t])
         return loss
