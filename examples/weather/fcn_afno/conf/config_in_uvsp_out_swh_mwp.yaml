@@ -28,7 +28,8 @@ out_of_sample_dir: /datasets/hdf5_data_uvsp_swh_mwp_1/out_of_sample
 
 ckpt_path: ./checkpoints/uvsp_swh_mwp_3
 
-channels: [0, 1, 2, 3, 4] #cdj
+in_channels: [0, 1, 2, 3, 4] #cdj
+out_channels: [0, 1] #cdj
 
 num_steps_train: 1
 num_steps_validation: 41
