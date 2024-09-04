@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+model:
+  model_type: "AFNO"
+  model_name: "diagnostic-precip-afno"
+  inp_shape: [720, 1440]
+  in_channels: 27 # TODO: this could be automated
+  out_channels: 1
+
+sources:
+  state_params:
+    # ERA5 atmospheric state data
+    data_dir: "/datasets/FourCastNet/FCN_ERA5_data_v0/" #cdj .h5 or .nc files
+    metadata_path: "/datasets/FourCastNet/FCN_ERA5_data_v0/data.json"  #???
+    name: era5
+    # Inputs following Pathak et al. (2022)
+    variables: [
+      "u10m", "v10m", "t2m", "sp", "msl", "tcwv",
+      "u500", "u850", "u1000", "v500", "v850", "v1000",
+      "z50", "z500", "z850", "z1000", "t500", "t850",
+      "r500", "r850"
+    ]
+    use_cos_zenith: True
+    stats_files:
+      mean: "/datasets/FourCastNet/additional/stats_v0/global_means.npy"
+      std: "/datasets/FourCastNet/additional/stats_v0/global_stds.npy"
+  diag_params:
+    # precipitation data
+    data_dir: "/datasets/FourCastNet/FCN_ERA5_data_v0/precip/"
+    metadata_path: "/datasets/FourCastNet/FCN_ERA5_data_v0/precip/data_precip.json"
+    name: precip
+    file_type: hdf5 #cdj replace netcdf4
+    variables: ["tp"]
+
+datapipe:
+  # geopotential_filename: "/datasets/FourCastNet/FCN_ERA5_data_v0/static/orography.nc"
+  # lsm_filename: "/datasets/FourCastNet/additional/stats_v0/land_sea_mask.nc"
+  use_latlon: True
+  num_samples_per_year_train: 1456
+  num_samples_per_year_valid: 64
+  batch_size_train: 4
+  crop_window: [[0, 720], [0,1440]]
+
+training:
+  max_epoch: 50
+  checkpoint_dir: "/checkpoints/diagnostic_precip/"
+  optimizer_params:
+    lr: 5e-4
+    betas: [0.9, 0.95]
+  
+logging:
+  mlflow:
+    use_mlflow: True
+    experiment_name: "Diagnostic precipitation model"
+    user_name: "cdj"

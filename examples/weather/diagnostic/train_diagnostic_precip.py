@@ -24,7 +24,7 @@ from diagnostic import data, distribute, loss, models, precip, train
 
 
 @hydra.main(
-    version_base=None, config_path="config", config_name="diagnostic_precip.yaml"
+    version_base=None, config_path="config", config_name="diagnostic_precip_1.yaml"
 )
 def main(cfg):
     train_diagnostic(**OmegaConf.to_container(cfg))
