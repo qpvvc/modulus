@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
 import torch
 import hydra
 from hydra.utils import to_absolute_path
@@ -50,7 +50,7 @@ def loss_func(x, y, p=2.0):
 
 
 @torch.no_grad()
-def validation_step(eval_step, fcn_model, datapipe, channels=[0, 1], epoch=0):
+def validation_step(eval_step, fcn_model, datapipe, channels=[0,1,2,3,4], epoch=0, cfg=None):
     loss_epoch = 0
     num_examples = 0  # Number of validation examples
     # Dealing with DDP wrapper
@@ -58,20 +58,25 @@ def validation_step(eval_step, fcn_model, datapipe, channels=[0, 1], epoch=0):
         fcn_model = fcn_model.module
     fcn_model.eval()
     for i, data in enumerate(datapipe):
-        invar = data[0]["invar"].detach()
-        outvar = data[0]["outvar"].cpu().detach()
+        invar = data[0]["invar"].detach() # torch.Size([1, 5, 164, 168])
+        outvar = data[0]["outvar"].cpu().detach() # torch.Size([1, 8, 5, 164, 168]) num_steps_validation: 8
         predvar = torch.zeros_like(outvar)
-
-        #cdj 检查并替换invar中的NaN值
+        
+        #cdj
+        land_msk = torch.isnan(invar[0,3]).int() # nan_msk.sum().item()
+        invar = invar*(1-land_msk.unsqueeze(0).unsqueeze(0))
+        outvar = outvar*(1-land_msk.unsqueeze(0).unsqueeze(0).unsqueeze(0).cpu())
+        
+        # if torch.isnan(invar).sum() + torch.isnan(outvar).sum() > 0:
+            # print('nan in invar or outvar')
         invar = torch.nan_to_num(invar, nan=0.0)
-        #cdj 检查并替换outvar中的NaN值
-        outvar = torch.nan_to_num(outvar, nan=0.0)   
+        outvar = torch.nan_to_num(outvar, nan=0.0)      
         
         for t in range(outvar.shape[1]):
             output = eval_step(fcn_model, invar)
             invar.copy_(output)
-            predvar[:, t] = output.detach().cpu()
-
+            predvar[:, t] = output.detach().cpu()*(1-land_msk.unsqueeze(0).unsqueeze(0).cpu()) #cdj predvar torch.Size([1, 8, 5, 164, 168])
+    
         num_elements = torch.prod(torch.Tensor(list(predvar.shape[1:])))
         loss_epoch += torch.sum(torch.pow(predvar - outvar, 2)) / num_elements
         num_examples += predvar.shape[0]
@@ -89,8 +94,10 @@ def validation_step(eval_step, fcn_model, datapipe, channels=[0, 1], epoch=0):
                     ax[0, t].imshow(predvar[0, t, chan])
                     ax[1, t].imshow(outvar[0, t, chan])
                     ax[2, t].imshow(predvar[0, t, chan] - outvar[0, t, chan])
-
-                fig.savefig(f"era5_validation_channel{chan}_epoch{epoch}.png")
+                    
+                fig_save_path = f"{to_absolute_path(cfg.ckpt_path)}/epoch{epoch}_validation_channel{chan}.png"
+                os.makedirs(os.path.dirname(fig_save_path), exist_ok=True)
+                fig.savefig(fig_save_path)
 
     fcn_model.train()
     return loss_epoch / num_examples
@@ -121,7 +128,7 @@ def main(cfg: DictConfig) -> None:
 
     datapipe = ERA5HDF5Datapipe(
         data_dir=to_absolute_path(cfg.train_dir),
-        # stats_dir=to_absolute_path(cfg.stats_dir),
+        stats_dir=to_absolute_path(cfg.stats_dir),
         channels=cfg.channels,
         num_steps=cfg.num_steps_train,
         num_samples_per_year=cfg.num_samples_per_year_train,
@@ -137,7 +144,7 @@ def main(cfg: DictConfig) -> None:
         logger.file_logging()
         validation_datapipe = ERA5HDF5Datapipe(
             data_dir=to_absolute_path(cfg.validation_dir),
-            # stats_dir=to_absolute_path(cfg.stats_dir),
+            stats_dir=to_absolute_path(cfg.stats_dir),
             channels=cfg.channels,
             num_steps=cfg.num_steps_validation,
             num_samples_per_year=cfg.num_samples_per_year_validation,
@@ -196,21 +203,30 @@ def main(cfg: DictConfig) -> None:
         return my_model(invar)
 
     @StaticCaptureTraining(model=fcn_model, optim=optimizer, logger=logger)
-    def train_step_forward(my_model, invar, outvar):
+    def train_step_forward(my_model, invar, outvar, land_msk):
 
         #cdj 检查并替换invar中的NaN值
-        invar = torch.nan_to_num(invar, nan=0.0)
-        #cdj 检查并替换outvar中的NaN值
-        outvar = torch.nan_to_num(outvar, nan=0.0)      
-        
-        msk = torch.ones_like(outvar[:, 0])  # 假设 msk 是一个与 outvar 的单个时间步长相同形状的张量
+        # invar = torch.nan_to_num(invar, nan=0.0)
+        # outvar = torch.nan_to_num(outvar, nan=0.0)      
+        # msk = torch.ones_like(outvar[:, 0])  # 假设 msk 是一个与 outvar 的单个时间步长相同形状的张量
 
         # Multi-step prediction
         loss = 0
         for t in range(outvar.shape[1]):
             outpred = my_model(invar)
+            
             #cdj
-            outpred = outpred*msk
+            outpred = outpred*(1-land_msk.unsqueeze(0).unsqueeze(0))
+            
+            # plt.clf()
+            # fig, ax = plt.subplots(1, 5, figsize=(20, 5))
+            # for i in range(5):
+            #     # im = ax[i].imshow(outpred[0,0,i].detach().cpu().numpy())
+            #     im = ax[i].imshow(invar[0,i].detach().cpu().numpy())
+            #     ax[i].set_title(f'channel {i}')
+            #     fig.colorbar(im, ax=ax[i], orientation='vertical', fraction=.05)
+            # plt.savefig('/workspace/modulus-core/examples/weather/fcn_afno/output_image.png')  
+                      
             invar = outpred
             loss += loss_func(outpred, outvar[:, t])
         return loss
@@ -226,7 +242,23 @@ def main(cfg: DictConfig) -> None:
             for j, data in enumerate(datapipe):
                 invar = data[0]["invar"]
                 outvar = data[0]["outvar"]
-                loss = train_step_forward(fcn_model, invar, outvar)
+                
+                #cdj
+                land_msk = torch.isnan(invar[0,3]).int() # nan_msk.sum().item()
+                invar = invar*(1-land_msk.unsqueeze(0).unsqueeze(0))
+                outvar = outvar*(1-land_msk.unsqueeze(0).unsqueeze(0).unsqueeze(0))
+                invar = torch.nan_to_num(invar, nan=0.0)
+                outvar = torch.nan_to_num(outvar, nan=0.0)      
+                
+                # plt.clf()
+                # fig, ax = plt.subplots(1, 5, figsize=(20, 5))
+                # for i in range(5):
+                #     im = ax[i].imshow(outvar[0,0,i].detach().cpu().numpy())
+                #     ax[i].set_title(f'channel {i}')
+                #     fig.colorbar(im, ax=ax[i], orientation='vertical', fraction=.05)
+                # plt.savefig('/workspace/modulus-core/examples/weather/fcn_afno/output_image.png')  
+            
+                loss = train_step_forward(fcn_model, invar, outvar, land_msk)
 
                 log.log_minibatch({"loss": loss.detach()})
             log.log_epoch({"Learning Rate": optimizer.param_groups[0]["lr"]})
@@ -236,7 +268,7 @@ def main(cfg: DictConfig) -> None:
             with LaunchLogger("valid", epoch=epoch) as log:
                 # === Validation step ===
                 error = validation_step(
-                    eval_step_forward, fcn_model, validation_datapipe, epoch=epoch
+                    eval_step_forward, fcn_model, validation_datapipe, epoch=epoch, cfg=cfg
                 )
                 log.log_epoch({"Validation error": error})
 
@@ -245,7 +277,7 @@ def main(cfg: DictConfig) -> None:
 
         scheduler.step()
 
-        if (epoch % 5 == 0 or epoch == 1) and dist.rank == 0:
+        if (epoch % 1 == 0 or epoch == 1) and dist.rank == 0:
             # Use Modulus Launch checkpoint
             save_checkpoint(
                 to_absolute_path(cfg.ckpt_path),
