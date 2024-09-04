@@ -29,7 +29,8 @@ def setup_datapipes(
     valid_specs: Iterable[ClimateDataSourceSpec],
     dist_manager: DistributedManager,
     geopotential_filename: Union[str, None] = None,
-    geopotential_variable: str = "Z",
+    # geopotential_variable: str = "Z",
+    geopotential_variable: str = "orog",#cdj
     lsm_filename: Union[str, None] = None,
     lsm_variable: str = "LSM",
     use_latlon: bool = True,
@@ -85,7 +86,7 @@ def setup_datapipes(
 def data_source_specs(
     state_params: dict,
     diag_params: dict,
-    train_dir: str = "train",
+    train_dir: str = "train",#cdj
     valid_dir: str = "test",
 ):
     """Initialize data source specs for both training and validation."""
