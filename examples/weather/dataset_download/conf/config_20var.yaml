@@ -14,20 +14,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-zarr_store_path: "/datasets/zarr_data_uvsp_swh_mwp"
-hdf5_store_path: "/datasets/hdf5_data_uvsp_swh_mwp_1"
-dt: 1
-start_train_year: 1987
-end_train_year: 2017
+zarr_store_path: "./zarr_data"
+hdf5_store_path: "./hdf5_data"
+dt: 6
+start_train_year: 1980
+end_train_year: 2015
 test_years:
-  - 2018
-  - 2019
+  - 2016
+  - 2017
 out_of_sample_years:
-  - 2020
+  - 2018
 compute_mean_std: True
 variables:
   - "10m_u_component_of_wind"
-  - "10m_v_component_of_wind"  
+  - "10m_v_component_of_wind"
+  - "2m_temperature"
   - "surface_pressure"
-  - "significant_height_of_combined_wind_waves_and_swell"
-  - "mean_wave_period"
+  - "mean_sea_level_pressure"
+  - ["t", 850]
+  - ["u", 1000]
+  - ["v", 1000]
+  - ["z", 1000]
+  - ["u", 850]
+  - ["v", 850]
+  - ["z", 850]
+  - ["u", 500]
+  - ["v", 500]
+  - ["z", 500]
+  - ["t", 500]
+  - ["z", 50]
+  - ["r", 500]
+  - ["r", 850]
+  - "total_column_water_vapour"
