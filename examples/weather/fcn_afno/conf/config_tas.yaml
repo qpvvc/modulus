@@ -18,13 +18,13 @@ hydra:
   job:
     chdir: True
   run:
-    dir: outputs_temp/
+    dir: outputs/
 
 train_dir: /datasets/hdf5_tas_data/train
 validation_dir: /datasets/hdf5_tas_data/test
 stats_dir: /datasets/hdf5_tas_data/stats
 
-ckpt_path: checkpoints_temp/tas
+ckpt_path: checkpoints/tas
 
 channels: [0]
 
