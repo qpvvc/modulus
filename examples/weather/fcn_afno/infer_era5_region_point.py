@@ -55,10 +55,10 @@ def loss_func(x, y, p=2.0):
 
 
 @torch.no_grad()
-def autoregressive_inference(eval_step, fcn_model, datapipe, channels=[0,1,2,3,4], epoch=0, cfg=None):
+def autoregressive_inference(eval_step, fcn_model, datapipe, channels, epoch, ckpt_path):
     #cdj
     device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
-    file_dir = os.path.join(to_absolute_path(cfg.ckpt_path),'inf_2')
+    file_dir = os.path.join(to_absolute_path(ckpt_path),'inf_2')
     if not os.path.exists(file_dir):
         os.makedirs(file_dir)
     
@@ -110,7 +110,7 @@ def autoregressive_inference(eval_step, fcn_model, datapipe, channels=[0,1,2,3,4
         num_examples += predvar.shape[0]
 
         # Plotting
-        if ics == -1:
+        if ics == -1: 
             predvar = predvar.cpu().numpy()
             outvar = outvar.cpu().numpy()
             for chan in channels:
@@ -164,88 +164,50 @@ def autoregressive_inference(eval_step, fcn_model, datapipe, channels=[0,1,2,3,4
     return loss_epoch / num_examples
 
 
-@hydra.main(version_base="1.2", config_path="conf", config_name="config_uvsp_swh_mwp")
-def main(cfg: DictConfig) -> None:
+# @hydra.main(version_base="1.2", config_path="conf", config_name="config_uvsp_swh_mwp")
+def main() -> None:
     DistributedManager.initialize()
     dist = DistributedManager()
 
-    # Initialize loggers
-    # initialize_wandb(
-    #     project="Modulus-Launch-Dev",
-    #     entity="Modulus",
-    #     name="FourCastNet-Training",
-    #     group="FCN-DDP-Group",
-    # )
-    initialize_mlflow(
-        experiment_name="wind wave",
-        experiment_desc="Wind and wave prediction",
-        run_name="FCN-inference",
-        run_desc="FCN ERA5 inference",
-        user_name="cdj",
-        mode="offline",
-    )
-    LaunchLogger.initialize(use_mlflow=cfg.use_mlflow)  # Modulus launch logger
+    LaunchLogger.initialize()  # Modulus launch logger
     logger = PythonLogger("main")  # General python logger
-
-    # datapipe = ERA5HDF5Datapipe(
-    #     data_dir=to_absolute_path(cfg.train_dir),
-    #     stats_dir=to_absolute_path(cfg.stats_dir),
-    #     channels=cfg.channels,
-    #     num_steps=cfg.num_steps_train,
-    #     num_samples_per_year=cfg.num_samples_per_year_train,
-    #     batch_size=cfg.batch_size_train,
-    #     patch_size=(2, 2), #cdj
-    #     num_workers=cfg.num_workers_train,
-    #     device=dist.device,
-    #     process_rank=dist.rank,
-    #     world_size=dist.world_size,
-    # )
-    # logger.success(f"Loaded datapipe of size {len(datapipe)}")
     
+    #cdj 
+    ckpt_path = "./checkpoints/uvsp_swh_mwp_3/"
+    out_of_sample_dir = "/datasets/hdf5_data_uvsp_swh_mwp_1/out_of_sample"
+    stats_dir = "/datasets/hdf5_data_uvsp_swh_mwp_1/stats"
+    channels = [0, 1, 2, 3, 4]
+    num_steps_validation = 20
+    num_samples_per_year_train = 1460
+    num_samples_per_year_validation = 1
+    batch_size_validation = 1
+    num_workers_validation = 4
+
     if dist.rank == 0:
-        logger.file_logging()
         validation_datapipe = ERA5HDF5Datapipe(
-            data_dir=to_absolute_path(cfg.out_of_sample_dir),#cdj
-            stats_dir=to_absolute_path(cfg.stats_dir),
-            channels=cfg.channels,
-            num_steps=cfg.num_steps_validation, #prediction_length
-            num_samples_per_year=cfg.num_samples_per_year_train, #cdj
-            num_samples_per_year_validation=cfg.num_samples_per_year_validation, #n_ics
-            batch_size=cfg.batch_size_validation,
+            data_dir=to_absolute_path(out_of_sample_dir),#cdj
+            stats_dir=to_absolute_path(stats_dir),
+            channels=channels,
+            num_steps=num_steps_validation, #prediction_length
+            num_samples_per_year=num_samples_per_year_train, #cdj
+            num_samples_per_year_validation=num_samples_per_year_validation, #n_ics
+            batch_size=batch_size_validation,
             patch_size=(2, 2),#cdj
             device=dist.device,
-            num_workers=cfg.num_workers_validation,
+            num_workers=num_workers_validation,
             shuffle=True,
         )
-        # logger.success(f"Loaded validation datapipe of size {len(validation_datapipe)}")
-        logger.success("Inference for {} initial conditions".format(len(validation_datapipe)))
 
     fcn_model = AFNO(
         inp_shape=[164, 168], #cdj [165,169]
-        in_channels=len(cfg.channels),
-        out_channels=len(cfg.channels),
+        in_channels=len(channels),
+        out_channels=len(channels),
         patch_size=[2, 2], #cdj
         embed_dim=768,
         depth=12,
         num_blocks=8,
     ).to(dist.device)
 
-    if dist.rank == 0 and wandb.run is not None:
-        wandb.watch(
-            fcn_model, log="all", log_freq=1000, log_graph=(True)
-        )  # currently does not work with scripted modules. This will be fixed in the next release of W&B SDK.
-    # Distributed learning
-    if dist.world_size > 1:
-        ddps = torch.cuda.Stream()
-        with torch.cuda.stream(ddps):
-            fcn_model = DistributedDataParallel(
-                fcn_model,
-                device_ids=[dist.local_rank],
-                output_device=dist.device,
-                broadcast_buffers=dist.broadcast_buffers,
-                find_unused_parameters=dist.find_unused_parameters,
-            )
-        torch.cuda.current_stream().wait_stream(ddps)
 
     # Initialize optimizer and scheduler
     optimizer = optimizers.FusedAdam(
@@ -255,104 +217,28 @@ def main(cfg: DictConfig) -> None:
 
     # Attempt to load latest checkpoint if one exists
     loaded_epoch = load_checkpoint(
-        to_absolute_path(cfg.ckpt_path),
+        to_absolute_path(ckpt_path),
         models=fcn_model,
         optimizer=optimizer,
         scheduler=scheduler,
         device=dist.device,
     )
 
-    @StaticCaptureEvaluateNoGrad(model=fcn_model, logger=logger, use_graphs=False)
+    @StaticCaptureEvaluateNoGrad(model=fcn_model, use_graphs=False)
     def eval_step_forward(my_model, invar):
         return my_model(invar)
 
-    # @StaticCaptureTraining(model=fcn_model, optim=optimizer, logger=logger)
-    # def train_step_forward(my_model, invar, outvar, land_msk):
 
-    #     #cdj 检查并替换invar中的NaN值
-    #     # invar = torch.nan_to_num(invar, nan=0.0)
-    #     # outvar = torch.nan_to_num(outvar, nan=0.0)      
-    #     # msk = torch.ones_like(outvar[:, 0])  # 假设 msk 是一个与 outvar 的单个时间步长相同形状的张量
+    # Main 
+    if dist.rank == 0:
+        error = autoregressive_inference(
+            eval_step_forward, fcn_model, validation_datapipe, channels=channels, epoch=0, ckpt_path=ckpt_path
+        )
 
-    #     # Multi-step prediction
-    #     loss = 0
-    #     for t in range(outvar.shape[1]):
-    #         outpred = my_model(invar)
-            
-    #         #cdj
-    #         outpred = outpred*(1-land_msk.unsqueeze(0).unsqueeze(0))
-            
-    #         # plt.clf()
-    #         # fig, ax = plt.subplots(1, 5, figsize=(20, 5))
-    #         # for i in range(5):
-    #         #     # im = ax[i].imshow(outpred[0,0,i].detach().cpu().numpy())
-    #         #     im = ax[i].imshow(invar[0,i].detach().cpu().numpy())
-    #         #     ax[i].set_title(f'channel {i}')
-    #         #     fig.colorbar(im, ax=ax[i], orientation='vertical', fraction=.05)
-    #         # plt.savefig('/workspace/modulus-core/examples/weather/fcn_afno/output_image.png')  
-                      
-    #         invar = outpred
-    #         loss += loss_func(outpred, outvar[:, t])
-    #     return loss
 
-    # Main training loop
-    # max_epoch = cfg.max_epoch
-    for epoch in range(1):
-        # Wrap epoch in launch logger for console / WandB logs
-        # with LaunchLogger(
-        #     "train", epoch=epoch, num_mini_batch=len(datapipe), epoch_alert_freq=10
-        # ) as log:
-        #     # === Training step ===
-        #     for j, data in enumerate(datapipe):
-        #         invar = data[0]["invar"]
-        #         outvar = data[0]["outvar"]
-                
-        #         #cdj
-        #         land_msk = torch.isnan(invar[0,3]).int() # nan_msk.sum().item()
-        #         invar = invar*(1-land_msk.unsqueeze(0).unsqueeze(0))
-        #         outvar = outvar*(1-land_msk.unsqueeze(0).unsqueeze(0).unsqueeze(0))
-        #         invar = torch.nan_to_num(invar, nan=0.0)
-        #         outvar = torch.nan_to_num(outvar, nan=0.0)      
-                
-        #         # plt.clf()
-        #         # fig, ax = plt.subplots(1, 5, figsize=(20, 5))
-        #         # for i in range(5):
-        #         #     im = ax[i].imshow(outvar[0,0,i].detach().cpu().numpy())
-        #         #     ax[i].set_title(f'channel {i}')
-        #         #     fig.colorbar(im, ax=ax[i], orientation='vertical', fraction=.05)
-        #         # plt.savefig('/workspace/modulus-core/examples/weather/fcn_afno/output_image.png')  
-            
-        #         loss = train_step_forward(fcn_model, invar, outvar, land_msk)
+    scheduler.step()
 
-        #         log.log_minibatch({"loss": loss.detach()})
-        #     log.log_epoch({"Learning Rate": optimizer.param_groups[0]["lr"]})
 
-        if dist.rank == 0:
-            
-            # Wrap validation in launch logger for console / WandB logs
-            with LaunchLogger("valid", epoch=epoch) as log:
-                # === Validation step ===
-                error = autoregressive_inference(
-                    eval_step_forward, fcn_model, validation_datapipe, epoch=epoch, cfg=cfg
-                )
-            
-                # print("time for 1 autoreg inference = ", t2)
-                log.log_epoch({"Validation error": error})
-
-        if dist.world_size > 1:
-            torch.distributed.barrier()
-
-        scheduler.step()
-
-        # if (epoch % 1 == 0 or epoch == 1) and dist.rank == 0:
-        #     # Use Modulus Launch checkpoint
-        #     save_checkpoint(
-        #         to_absolute_path(cfg.ckpt_path),
-        #         models=fcn_model,
-        #         optimizer=optimizer,
-        #         scheduler=scheduler,
-        #         epoch=epoch,
-        #     )
 
     if dist.rank == 0:
         logger.info("Finished inference!")
