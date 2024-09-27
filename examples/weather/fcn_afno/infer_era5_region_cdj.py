@@ -58,7 +58,10 @@ def loss_func(x, y, p=2.0):
 def autoregressive_inference(eval_step, fcn_model, datapipe, channels=[0,1,2,3,4], epoch=0, cfg=None):
     #cdj
     device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
-
+    file_dir = os.path.join(to_absolute_path(cfg.ckpt_path),'inf_2')
+    if not os.path.exists(file_dir):
+        os.makedirs(file_dir)
+    
     loss_epoch = 0
     num_examples = 0  # Number of validation examples
     # Dealing with DDP wrapper
@@ -119,9 +122,11 @@ def autoregressive_inference(eval_step, fcn_model, datapipe, channels=[0,1,2,3,4
                     ax[0, t].imshow(predvar[0, t, chan])
                     ax[1, t].imshow(outvar[0, t, chan])
                     ax[2, t].imshow(predvar[0, t, chan] - outvar[0, t, chan])
-                    
-                fig_save_path = f"{to_absolute_path(cfg.ckpt_path)}/inf_1/epoch{epoch}_validation_channel{chan}.png"
-                os.makedirs(os.path.dirname(fig_save_path), exist_ok=True)
+                
+                fig_name = f"epoch{epoch}_validation_channel{chan}.png"
+                fig_save_path = os.path.join(file_dir, fig_name)
+                # os.makedirs(os.path.dirname(fig_save_path), exist_ok=True)
+                # print("Saving figs at {}".format(fig_save_path))
                 fig.savefig(fig_save_path)
         
         vl = np.expand_dims(valid_loss.cpu().numpy(),0)
@@ -134,10 +139,10 @@ def autoregressive_inference(eval_step, fcn_model, datapipe, channels=[0,1,2,3,4
             acc_all = np.concatenate((acc_all, ac), 0)
         
     #save predictions and loss
-    file_path = os.path.join(to_absolute_path(cfg.ckpt_path),'inf_1', 'autoregressive_predictions' + '.h5')
+    file_name = 'autoregressive_predictions.h5'
+    file_path = os.path.join(file_dir, file_name)
     print("Saving files at {}".format(file_path))
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    with h5py.File(os.path.join(to_absolute_path(cfg.ckpt_path),'inf_1', 'autoregressive_predictions' + '.h5'), 'a') as f:
+    with h5py.File(file_path, 'a') as f:
     
         try:
             f.create_dataset("rmse", data = valid_loss_all, shape = valid_loss_all.shape, dtype =np.float32)
