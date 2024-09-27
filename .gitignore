@@ -49,7 +49,10 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+<<<<<<< HEAD
 .testmon*
+=======
+>>>>>>> 63937199 (save)
 cover/
 
 # Translations
@@ -71,7 +74,10 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+<<<<<<< HEAD
 docs/examples/
+=======
+>>>>>>> 63937199 (save)
 
 # PyBuilder
 .pybuilder/
@@ -155,7 +161,10 @@ cython_debug/
 
 # VsCode
 .vscode/
+<<<<<<< HEAD
 .cursor/
+=======
+>>>>>>> 63937199 (save)
 
 # VIM
 *.swp
@@ -165,27 +174,35 @@ cython_debug/
 nsight-systems*
 build/
 mlruns/
+<<<<<<< HEAD
 mlflow.db
 checkpoints/
 cache/
 output/
+=======
+checkpoints/
+>>>>>>> 63937199 (save)
 
 # Hydra
 outputs/
 multirun/
 .hydra/
 
+<<<<<<< HEAD
 # SLURM
 slurm-*.out
 sbatch_logs/
 
 # ASV
 .asv/
+=======
+>>>>>>> 63937199 (save)
 #cdj
 globusconnectpersonal-3.2.5
 globusconnectpersonal-latest.tgz
 examples/weather/data.ipynb
 docs/tutorials/modulus_models.ipynb
+<<<<<<< HEAD
 docs/tutorials/dist.py
 google-cloud-sdk
 google-cloud-cli-477.0.0-linux-x86_64.tar.gz
@@ -194,6 +211,8 @@ examples/weather/dataset_download/test.ipynb
 examples/weather/dataset_download/old
 docs/tutorials/modulus_models.ipynb
 examples/weather/data.ipynb
+=======
+>>>>>>> 63937199 (save)
 globusconnectpersonal-latest.tgz
 globusconnectpersonal-3.2.5
 docs/tutorials/dist.py
@@ -202,6 +221,11 @@ google-cloud-cli-477.0.0-linux-x86_64.tar.gz
 output
 examples/weather/dataset_download/test.ipynb
 examples/weather/dataset_download/old
+<<<<<<< HEAD
+=======
+docs/tutorials/modulus_models.ipynb
+examples/weather/data.ipynb
+>>>>>>> 63937199 (save)
 output_image.png
 
 examples/weather/fcn_afno/conf/config_in_uvsp_out_swh_mwp.yaml
