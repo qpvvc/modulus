@@ -203,3 +203,5 @@ output
 examples/weather/dataset_download/test.ipynb
 examples/weather/dataset_download/old
 output_image.png
+
+examples/weather/fcn_afno/conf/config_in_uvsp_out_swh_mwp.yaml
