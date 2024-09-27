@@ -170,4 +170,4 @@ multirun/
 .hydra/
 
 #cdj
-examples/weather/fcn_afno/conf/config_in_uvsp_out_swh_mwp.yaml
+examples/weather/fcn_afno/cdj
