@@ -129,7 +129,7 @@ def main(cfg: DictConfig) -> None:
     datapipe = ERA5HDF5Datapipe(
         data_dir=to_absolute_path(cfg.train_dir),
         stats_dir=to_absolute_path(cfg.stats_dir),
-        channels=cfg.channels,
+        channels=cfg.in_channels,
         num_steps=cfg.num_steps_train,
         num_samples_per_year=cfg.num_samples_per_year_train,
         batch_size=cfg.batch_size_train,
@@ -145,7 +145,7 @@ def main(cfg: DictConfig) -> None:
         validation_datapipe = ERA5HDF5Datapipe(
             data_dir=to_absolute_path(cfg.validation_dir),
             stats_dir=to_absolute_path(cfg.stats_dir),
-            channels=cfg.channels,
+            channels=cfg.in_channels,
             num_steps=cfg.num_steps_validation,
             num_samples_per_year=cfg.num_samples_per_year_validation,
             batch_size=cfg.batch_size_validation,

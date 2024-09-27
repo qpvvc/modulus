@@ -20,29 +20,29 @@ hydra:
   run:
     dir: ./outputs
 
-# data_dir: /datasets/hdf5_data_uvsp_swh_mwp_1
-train_dir: /datasets/hdf5_data_uvsp_swh_mwp_1/train
-validation_dir: /datasets/hdf5_data_uvsp_swh_mwp_1/test
-stats_dir: /datasets/hdf5_data_uvsp_swh_mwp_1/stats
-out_of_sample_dir: /datasets/hdf5_data_uvsp_swh_mwp_1/out_of_sample
+# data_dir: ../../../../dataset/hdf5_data_uvsp_swh_mwp_1
+train_dir: ../../../../dataset/hdf5_data_uvsp_swh_mwp_1/train
+validation_dir: ../../../../dataset/hdf5_data_uvsp_swh_mwp_1/test
+stats_dir: ../../../../dataset/hdf5_data_uvsp_swh_mwp_1/stats
+out_of_sample_dir: ../../../../dataset/hdf5_data_uvsp_swh_mwp_1/out_of_sample
 
-ckpt_path: ./checkpoints/uvsp_swh_mwp_3
+ckpt_path: ./checkpoints/uvsp_swh_mwp_4
 
 channels: [0, 1, 2, 3, 4] #cdj
 
 num_steps_train: 1
-num_steps_validation: 41
+num_steps_validation: 6
 
 wb_artifacts: False
 use_mlflow: True
 
 start_epoch: 0
-max_epoch: 80
+max_epoch: 10
 
 num_samples_per_year_train: 8736 #cdj
 num_samples_per_year_validation: 24 #cdj
 num_workers_train: 8
 num_workers_validation: 8
 
-batch_size_train: 10
-batch_size_validation: 1
+batch_size_train: 20
+batch_size_validation: 20

@@ -31,6 +31,10 @@ from modulus.utils import StaticCaptureTraining, StaticCaptureEvaluateNoGrad
 from modulus.launch.logging import LaunchLogger, PythonLogger, initialize_mlflow
 from modulus.launch.utils import load_checkpoint, save_checkpoint
 
+#cdj
+# import pynvml
+# pynvml.nvmlInit()
+        
 try:
     from apex import optimizers
 except:
