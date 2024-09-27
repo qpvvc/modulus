@@ -204,7 +204,11 @@ class ClimateDataSourceSpec:
         self.logger.info(f"Getting file stats from {self.data_paths[0]}")
         if self.file_type == "hdf5":
             with h5py.File(self.data_paths[0], "r") as f:
-                dataset_shape = f["fields"].shape
+                if 'precip' in str(self.data_paths[0]):
+                    dataset_shape = f["tp"].shape
+                    dataset_shape = dataset_shape[:1] + (1,) + dataset_shape[1:]
+                else:
+                    dataset_shape = f["fields"].shape
         else:
             with nc.Dataset(self.data_paths[0], "r") as f:
                 var_shape = f[self.variables[0]].shape

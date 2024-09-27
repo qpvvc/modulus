@@ -128,6 +128,7 @@ class ERA5HDF5Datapipe(Datapipe):
         interpolation_type: Union[str, None] = None,
         patch_size: Union[Tuple[int, int], int, None] = None,
         num_samples_per_year: Union[int, None] = None,
+        num_samples_per_year_validation: Union[int, None] = None, #cdj
         use_cos_zenith: bool = False,
         cos_zenith_args: Dict = {},
         use_time_of_year_index: bool = False,
@@ -150,6 +151,7 @@ class ERA5HDF5Datapipe(Datapipe):
         self.num_steps = num_steps
         self.num_history = num_history
         self.num_samples_per_year = num_samples_per_year
+        self.num_samples_per_year_validation = num_samples_per_year_validation #cdj
         self.use_cos_zenith = use_cos_zenith
         self.cos_zenith_args = cos_zenith_args
         self.use_time_of_year_index = use_time_of_year_index
@@ -284,7 +286,11 @@ class ERA5HDF5Datapipe(Datapipe):
             self.logger.info(f"Input image shape: {self.img_shape}")
 
             # Get total length
-            self.total_length = self.n_years * self.num_samples_per_year
+            if self.num_samples_per_year_validation is None: #cdj
+                self.total_length = self.n_years * self.num_samples_per_year
+            else:
+                self.total_length = self.n_years * self.num_samples_per_year_validation #cdj
+
             self.length = self.total_length
 
             # Sanity checks
@@ -364,6 +370,7 @@ class ERA5HDF5Datapipe(Datapipe):
                 num_steps=self.num_steps,
                 num_history=self.num_history,
                 num_samples_per_year=self.num_samples_per_year,
+                num_samples_per_year_validation=self.num_samples_per_year_validation, #cdj               
                 use_cos_zenith=self.use_cos_zenith,
                 cos_zenith_args=self.cos_zenith_args,
                 use_time_of_year_index=self.use_time_of_year_index,
@@ -508,6 +515,7 @@ class ERA5DaliExternalSource:
         num_history: int,
         stride: int,
         num_samples_per_year: int,
+        num_samples_per_year_validation: int,    #cdj    
         use_cos_zenith: bool,
         cos_zenith_args: Dict,
         use_time_of_year_index: bool,
@@ -525,14 +533,25 @@ class ERA5DaliExternalSource:
         self.num_history = num_history
         self.stride = stride
         self.num_samples_per_year = num_samples_per_year
+        self.num_samples_per_year_validation = num_samples_per_year_validation #cdj        
         self.use_cos_zenith = use_cos_zenith
         self.use_time_of_year_index = use_time_of_year_index
         self.batch_size = batch_size
         self.shuffle = shuffle
-
+        #cdj
+        # if num_samples_per_year_validation is not None: 
+            # num_samples = num_samples_per_year
+            
         self.last_epoch = None
+        
+        # self.indices = np.arange(num_samples)
+        #cdj
+        if num_samples_per_year_validation is None:
+            self.indices = np.arange(num_samples)
+        else:
+            # self.indices = np.linspace(0,num_samples_per_year,num_samples_per_year_validation).astype(int) 
+            self.indices = np.random.choice(num_samples_per_year, num_samples_per_year_validation, replace=False)
 
-        self.indices = np.arange(num_samples)
         # Shard from indices if running in parallel
         self.indices = np.array_split(self.indices, world_size)[process_rank]
 
