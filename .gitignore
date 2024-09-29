@@ -170,4 +170,4 @@ multirun/
 .hydra/
 
 #cdj
-examples/weather/fcn_afno/cdj
+examples/weather/fcn_afno/mycase
